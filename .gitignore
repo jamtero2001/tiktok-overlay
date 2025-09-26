@@ -1,7 +1,8 @@
 # Build artifacts
 bin/
 obj/
-Output/
+Output/*
+!Output/LeagueTikTokOverlay-Setup.exe
 
 # User-specific files
 *.user
