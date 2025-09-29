@@ -257,7 +257,7 @@ namespace LeagueTikTokOverlay
                           if (!document.getElementById('overlay-close-btn')) {
                             var btn = document.createElement('button');
                             btn.id = 'overlay-close-btn';
-                            btn.textContent = '\\u00D7';
+                            btn.textContent = 'X';
                             btn.addEventListener('click', function(ev){
                               try {
                                 ev.preventDefault();

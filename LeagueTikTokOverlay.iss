@@ -1,7 +1,7 @@
 
 [Setup]
 AppName=League TikTok Overlay
-AppVersion=1.0.0
+AppVersion=1.0.1
 DefaultDirName={pf}\League TikTok Overlay
 DisableDirPage=yes
 DefaultGroupName=League TikTok Overlay
