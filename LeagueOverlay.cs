@@ -17,8 +17,10 @@ namespace LeagueTikTokOverlay
             if (webView == null) return;
             // Reserve space for the top bar so it never gets covered
             int topOffset = (topBar?.Height ?? 28);
-            webView.Location = new Point(0, topOffset);
-            webView.Size = new Size(this.ClientSize.Width, this.ClientSize.Height - topOffset);
+            // Leave small margins for resize handles
+            int margin = RESIZE_HANDLE;
+            webView.Location = new Point(margin, topOffset);
+            webView.Size = new Size(this.ClientSize.Width - (margin * 2), this.ClientSize.Height - topOffset - margin);
             webView.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             try { topBar?.BringToFront(); exitButton?.BringToFront(); } catch { }
         }
@@ -42,7 +44,7 @@ namespace LeagueTikTokOverlay
         private const int HTBOTTOMLEFT = 16;
         private const int HTBOTTOMRIGHT = 17;
         private const int HTCAPTION = 2;
-        private const int RESIZE_HANDLE = 8;
+        private const int RESIZE_HANDLE = 10;
         private const int WM_NCLBUTTONDOWN = 0xA1;
         private const int HTCLIENT = 1;
         private const int WM_HOTKEY = 0x0312;
@@ -106,6 +108,16 @@ namespace LeagueTikTokOverlay
             try { RegisterHotKey(this.Handle, HOTKEY_ID_EXIT, MOD_CONTROL | MOD_SHIFT, (uint)Keys.Q); } catch { }
         }
 
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            // Draw a subtle resize border to show where users can drag
+            using (Pen borderPen = new Pen(Color.FromArgb(80, 255, 255, 255), 2))
+            {
+                e.Graphics.DrawRectangle(borderPen, 0, 0, this.ClientSize.Width - 1, this.ClientSize.Height - 1);
+            }
+        }
+
         private void InitializeComponent()
         {
             this.SuspendLayout();
@@ -113,15 +125,20 @@ namespace LeagueTikTokOverlay
             this.Name = "LeagueOverlay";
             this.Text = "League TikTok Overlay";
             this.Size = new Size(400, 600);
+            this.MinimumSize = new Size(250, 350);
             this.FormBorderStyle = FormBorderStyle.None;
             this.BackColor = Color.Black;
             this.TopMost = true;
             this.ShowInTaskbar = false;
             this.StartPosition = FormStartPosition.Manual;
             this.Padding = Padding.Empty;
+            this.DoubleBuffered = true;
 
             // Top bar with Exit button
-            topBar = new Panel { Dock = DockStyle.Top, Height = 36, BackColor = Color.FromArgb(192, 15, 15, 15) };
+            topBar = new Panel { Height = 36, BackColor = Color.FromArgb(192, 15, 15, 15) };
+            topBar.Location = new Point(RESIZE_HANDLE, 0);
+            topBar.Width = this.ClientSize.Width - (RESIZE_HANDLE * 2);
+            topBar.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             topBar.MouseDown += (s, e) => StartWindowDrag();
             titleLabel = new Label();
             titleLabel.Text = "League TikTok Overlay";
@@ -177,7 +194,7 @@ namespace LeagueTikTokOverlay
             webView = new WebView2();
             this.Controls.Add(webView);
             PositionWebView();
-            this.Resize += (s, e) => PositionWebView();
+            this.Resize += (s, e) => { PositionWebView(); this.Invalidate(); };
 
             try
             {
@@ -679,7 +696,7 @@ namespace LeagueTikTokOverlay
             if (m.Msg == WM_NCHITTEST)
             {
                 base.WndProc(ref m);
-                if ((int)m.Result == 0)
+                if (m.Result.ToInt32() == HTCLIENT)
                 {
                     var cursor = this.PointToClient(new Point((int)m.LParam & 0xFFFF, (int)m.LParam >> 16));
                     bool top = cursor.Y < RESIZE_HANDLE;
@@ -687,17 +704,20 @@ namespace LeagueTikTokOverlay
                     bool right = cursor.X > this.ClientSize.Width - RESIZE_HANDLE;
                     bool bottom = cursor.Y > this.ClientSize.Height - RESIZE_HANDLE;
 
+                    // Prioritize corner resizing
                     if (top && left) { m.Result = (IntPtr)HTTOPLEFT; return; }
                     if (top && right) { m.Result = (IntPtr)HTTOPRIGHT; return; }
                     if (bottom && left) { m.Result = (IntPtr)HTBOTTOMLEFT; return; }
                     if (bottom && right) { m.Result = (IntPtr)HTBOTTOMRIGHT; return; }
+                    
+                    // Edge resizing
                     if (left) { m.Result = (IntPtr)HTLEFT; return; }
                     if (right) { m.Result = (IntPtr)HTRIGHT; return; }
                     if (top) { m.Result = (IntPtr)HTTOP; return; }
                     if (bottom) { m.Result = (IntPtr)HTBOTTOM; return; }
 
-                    // Make the top 40px act as caption for moving
-                    if (cursor.Y <= 40)
+                    // Make the topBar area act as caption for moving (but not the very top edge which is for resizing)
+                    if (cursor.Y > RESIZE_HANDLE && cursor.Y <= (topBar?.Height ?? 36) + RESIZE_HANDLE)
                     {
                         m.Result = (IntPtr)HTCAPTION;
                         return;
